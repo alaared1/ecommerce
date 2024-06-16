@@ -14,6 +14,8 @@ builder.Services.AddDbContext<StoreContext>(opt => {
     opt.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection"));
 });
 builder.Services.AddScoped<IProductRepositry, ProductRepository>();
+builder.Services.AddScoped(typeof(IGenericRepositry<>), typeof(GenericRepository<>));
+builder.Services.AddAutoMapper(typeof(Program));
 
 var app = builder.Build();
 

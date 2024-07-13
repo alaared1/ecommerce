@@ -4,12 +4,12 @@ using Core.Interfaces;
 using Core.Specifications;
 using API.Dtos;
 using AutoMapper;
+using API.Errors;
+using API.Helpers;
 
 namespace API.Controllers
 {
-    [ApiController]
-    [Route("api/[controller]")]
-    public class ProductsController : ControllerBase
+    public class ProductsController : BaseApiController
     {
         private readonly IGenericRepositry<Product> _productRepository;
         private readonly IGenericRepositry<ProductBrand> _productBrandRepository;
@@ -28,30 +28,30 @@ namespace API.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<IReadOnlyList<ProductToReturnDto>>> GetProducts()
+        public async Task<ActionResult<Pagination<ProductToReturnDto>>> GetProducts([FromQuery]ProductSpecParams productParams)
         {
-            var spec = new ProductsWithObjectsSpecification();
+            var spec = new ProductsWithObjectsSpecification(productParams);
+            var countSpec = new ProductsWithFiltersForCountSpecification(productParams);
+            var totalItems = await _productRepository.CountAsync(spec);
             var products = await _productRepository.ListAsync(spec);
+
+            var data = _mapper.Map<IReadOnlyList<Product>, IReadOnlyList<ProductToReturnDto>>(products);
             
-            return Ok(_mapper.Map<IReadOnlyList<Product>, IReadOnlyList<ProductToReturnDto>>(products));
+            return Ok(new Pagination<ProductToReturnDto>(productParams.PageIndex, productParams.PageSize, totalItems, data));
+            //return Ok(_mapper.Map<IReadOnlyList<Product>, IReadOnlyList<ProductToReturnDto>>(products));
         }
         //Just a comment here to test the font
         [HttpGet("{id}")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
         public async Task<ActionResult<ProductToReturnDto>> GetProduct(int id)
         {
             var spec = new ProductsWithObjectsSpecification(id);
             var product = await _productRepository.GetEntityWithSpec(spec);
 
+            if(product == null) return NotFound(new ApiResponse(404));
+
             return _mapper.Map<Product, ProductToReturnDto>(product);
-            // return new ProductToReturnDto {
-            //     Id = product.Id,
-            //     Name = product.Name,
-            //     Description = product.Description,
-            //     PictureUrl = product.PictureUrl,
-            //     Price = product.Price,
-            //     ProductBrand = product.ProductBrand.Name,
-            //     ProductType = product.ProductType.Name
-            // };
         }
 
         [HttpGet("brands")]
